@@ -10,14 +10,20 @@ from matplotlib import pyplot as plt
 
 # Load an color image in grayscale
 img = cv2.imread('D:/GITHUB REPOS/DSB-TargetAnalysis/DSB-AnalysisPY/test.jpg',0)
-edges = cv2.Canny(img,100,200)
 
-plt.subplot(121),plt.imshow(img,cmap = 'gray')
-plt.title('Original Image'), plt.xticks([]), plt.yticks([])
-plt.subplot(122),plt.imshow(edges,cmap = 'gray')
-plt.title('Edge Image'), plt.xticks([]), plt.yticks([])
-plt.show()
+# edges = cv2.Canny(img,100,200)
 
+blurred = cv2.GaussianBlur( img, (9, 9), 0 )
+
+circles = cv2.HoughCircles(blurred, cv2.HOUGH_GRADIENT, 1 , 5, 200 , 90, 20 , 100)
+
+circles = np.round(circles[0, :]).astype("int")
+print circles.size
+for (x, y, r) in circles:
+		# draw the circle in the output image, then draw a rectangle
+		# corresponding to the center of the circle
+		cv2.circle(img, (x, y), r, (0, 255, 0), 4)
+		cv2.rectangle(img, (x - 5, y - 5), (x + 5, y + 5), (0, 128, 255), -1)
 
 cv2.imshow('image',img)
 cv2.waitKey(0)
