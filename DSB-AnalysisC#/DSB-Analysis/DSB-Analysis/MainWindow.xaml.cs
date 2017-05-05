@@ -25,11 +25,13 @@ namespace DSB_Analysis
     /// </summary>
     public partial class MainWindow : Window
     {
-        int count;
         int red, green, blue;
         int redP, greenP, blueP;
         public Point middlePoint;
         public List<Point> pointList;
+        public List<Point> pointListToIgnore;
+        public List<Point> tempWorkingListForConnectedPixels;
+        public List<int> resultList;
 
         public MainWindow()
         {
@@ -43,6 +45,9 @@ namespace DSB_Analysis
             middlePoint.Y = Config.middleValueY;
 
             pointList = new List<Point>();
+            pointListToIgnore = new List<Point>();
+            tempWorkingListForConnectedPixels = new List<Point>();
+            resultList = new List<int>();
         }
 
         private void b_openImg_Click(object sender, RoutedEventArgs e)
@@ -63,20 +68,64 @@ namespace DSB_Analysis
 
             presentResult();
         }
+        
+        private void analyzeImage(string path)
+        {
+            var image = (Bitmap)Image.FromFile(path , true);
+            for (var x = 0; x < image.Width; ++x)
+            {
+                for (var y = 0; y < image.Height; ++y)
+                {
+                    var pixelColor = image.GetPixel(x, y);
+                    
+                    if (!pixelIsOnIgnoreList(new Point(x,y)) && !pixelIsBlack(pixelColor) && pixelIsRed(pixelColor))
+                    {
+                        getAllSurroundingPixelInSameColor(image, new Point(x, y));
+                    }
+                }
+            }
+        }
 
+        public void getAllSurroundingPixelInSameColor(Bitmap image, Point initialPoint)
+        {
+            tempWorkingListForConnectedPixels.Add(initialPoint);
+            pointListToIgnore.Add(initialPoint);
+
+            for (var x = initialPoint.X; x < image.Width; ++x)
+            {
+                for (var y = initialPoint.Y; y < image.Height; ++y)
+                {
+                    var searcherPixelColor = image.GetPixel(x, y);
+
+                    if (!pixelIsBlack(searcherPixelColor) && pixelIsRed(searcherPixelColor))
+                    {
+                        var nextPoint = new Point(x, y);
+                        if (!tempWorkingListForConnectedPixels.Any(point => point.Y == nextPoint.Y && point.X == nextPoint.X))
+                        {
+                            tempWorkingListForConnectedPixels.Add(nextPoint);
+                            pointListToIgnore.Add(nextPoint);
+                        }
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+            }
+            findNearestPixelToCenter();
+        }
+        
         private void presentResult()
         {
-            var pointDistanceToMiddleList = new List<int>();
             string results = "Sie haben folgende Punkte:" + Environment.NewLine;
-
-            foreach (var point in pointList)
+            var all = 0;
+            
+            foreach (var result in resultList)
             {
-                pointDistanceToMiddleList.Add(calculateDistanceToMiddle(point));
+                results += calculateResult(result) + ", ";
+                all = all + calculateResult(result);
             }
-            foreach (var pointDistance in pointDistanceToMiddleList)
-            {
-                results += calculateResult(pointDistance) + Environment.NewLine;
-            }
+            results += Environment.NewLine + "Gesamt: " + all;
             MessageBox.Show(results, "Ergebnisse", MessageBoxButton.OK, MessageBoxImage.Information);
 
             pointList.Clear();
@@ -123,29 +172,7 @@ namespace DSB_Analysis
             return 1;
         }
 
-        private void analyzeImage(string path)
-        {
-            var image = (Bitmap)Image.FromFile(path,true);
-            for (var x = 0; x < image.Width; ++x)
-            {
-                for (var y = 0; y < image.Height; ++y)
-                {
-                    var pixelColor = image.GetPixel(x, y);
-                    redP = pixelColor.R;
-                    greenP = pixelColor.G;
-                    blueP = pixelColor.B;
-
-                    // Check if Pixel is Red
-                    if (!pixelIsBlack(pixelColor) && pixelIsRed(pixelColor))
-                    {
-                        ++count;
-                        var p = new Point(x, image.Height - y);
-                        pointList.Add(p);
-                    }
-                }
-            }
-            MessageBox.Show("#"+ count, "", MessageBoxButton.OK, MessageBoxImage.Information, MessageBoxResult.OK, MessageBoxOptions.None);
-        }
+        #region HELPERS
 
         public bool pixelIsBlack(Color pixelColor)
         {
@@ -175,11 +202,6 @@ namespace DSB_Analysis
             return false;
         }
 
-        public void checkSurroundingPixels()
-        {
-            
-        }
-
         public int calculateDistanceToMiddle(Point point)
         {
             // Pythargoras theorem
@@ -190,5 +212,26 @@ namespace DSB_Analysis
 
             return (int)Math.Round(distance, MidpointRounding.AwayFromZero);
         }
+
+        private bool pixelIsOnIgnoreList(Point p)
+        {
+            if (pointListToIgnore.Contains(p)) return true;
+            return false;
+        }
+
+        private void findNearestPixelToCenter()
+        {
+            var distanceList = new List<int>();
+            foreach (var point in tempWorkingListForConnectedPixels)
+            {
+                distanceList.Add(calculateDistanceToMiddle(point));
+            }
+            tempWorkingListForConnectedPixels.Clear();
+            
+            resultList.Add(distanceList.Min());
+        }
+
+        #endregion HELPERS
+
     }
 }
