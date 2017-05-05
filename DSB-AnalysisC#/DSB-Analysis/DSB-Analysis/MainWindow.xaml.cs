@@ -16,6 +16,7 @@ using System.Windows.Shapes;
 using Microsoft.Win32;
 using Color = System.Drawing.Color;
 using Image = System.Drawing.Image;
+using Point = System.Drawing.Point;
 
 namespace DSB_Analysis
 {
@@ -24,18 +25,24 @@ namespace DSB_Analysis
     /// </summary>
     public partial class MainWindow : Window
     {
-        public int colorDiff = 45;
-        int count = 0;
+        int count;
         int red, green, blue;
         int redP, greenP, blueP;
+        public Point middlePoint;
+        public List<Point> pointList;
 
         public MainWindow()
         {
             InitializeComponent();
 
-            red = 255;
-            blue = 0;
-            green = 0;
+            red = Config.desiredColorValueRed;
+            blue = Config.desiredColorValueBlue;
+            green = Config.desiredColorValueGreen;
+
+            middlePoint.X = Config.middleValueX;
+            middlePoint.Y = Config.middleValueY;
+
+            pointList = new List<Point>();
         }
 
         private void b_openImg_Click(object sender, RoutedEventArgs e)
@@ -53,6 +60,67 @@ namespace DSB_Analysis
             img_ImageBox.Source = image;
 
             analyzeImage(selectedFile);
+
+            presentResult();
+        }
+
+        private void presentResult()
+        {
+            var pointDistanceToMiddleList = new List<int>();
+            string results = "Sie haben folgende Punkte:" + Environment.NewLine;
+
+            foreach (var point in pointList)
+            {
+                pointDistanceToMiddleList.Add(calculateDistanceToMiddle(point));
+            }
+            foreach (var pointDistance in pointDistanceToMiddleList)
+            {
+                results += calculateResult(pointDistance) + Environment.NewLine;
+            }
+            MessageBox.Show(results, "Ergebnisse", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            pointList.Clear();
+        }
+
+        private int calculateResult(int pointDistanceToMiddle)
+        {
+            if (pointDistanceToMiddle >= Config.result10Min && pointDistanceToMiddle <= Config.result10Max)
+            {
+                return 10;
+            }
+            if (pointDistanceToMiddle >= Config.result9Min && pointDistanceToMiddle <= Config.result9Max)
+            {
+                return 9;
+            }
+            if (pointDistanceToMiddle >= Config.result8Min && pointDistanceToMiddle <= Config.result8Max)
+            {
+                return 8;
+            }
+            if (pointDistanceToMiddle >= Config.result7Min && pointDistanceToMiddle <= Config.result7Max)
+            {
+                return 7;
+            }
+            if (pointDistanceToMiddle >= Config.result6Min && pointDistanceToMiddle <= Config.result6Max)
+            {
+                return 6;
+            }
+            if (pointDistanceToMiddle >= Config.result5Min && pointDistanceToMiddle <= Config.result5Max)
+            {
+                return 5;
+            }
+            if (pointDistanceToMiddle >= Config.result4Min && pointDistanceToMiddle <= Config.result4Max)
+            {
+                return 4;
+            }
+            if (pointDistanceToMiddle >= Config.result3Min && pointDistanceToMiddle <= Config.result3Max)
+            {
+                return 3;
+            }
+            if (pointDistanceToMiddle >= Config.result2Min && pointDistanceToMiddle <= Config.result2Max)
+            {
+                return 2;
+            }
+            return 1;
         }
 
         private void analyzeImage(string path)
@@ -67,15 +135,16 @@ namespace DSB_Analysis
                     greenP = pixelColor.G;
                     blueP = pixelColor.B;
 
-                    if (!pixelIsBlack(pixelColor) && Math.Abs(redP - red) <= colorDiff &&
-                        Math.Abs(greenP - green) <= colorDiff &&
-                        Math.Abs(blueP - blue) <= colorDiff)
+                    // Check if Pixel is Red
+                    if (!pixelIsBlack(pixelColor) && pixelIsRed(pixelColor))
                     {
                         ++count;
+                        var p = new Point(x, image.Height - y);
+                        pointList.Add(p);
                     }
                 }
             }
-            MessageBox.Show(count.ToString(), "", MessageBoxButton.OK, MessageBoxImage.Information, MessageBoxResult.OK, MessageBoxOptions.None);
+            MessageBox.Show("#"+ count, "", MessageBoxButton.OK, MessageBoxImage.Information, MessageBoxResult.OK, MessageBoxOptions.None);
         }
 
         public bool pixelIsBlack(Color pixelColor)
@@ -84,7 +153,22 @@ namespace DSB_Analysis
             greenP = pixelColor.G;
             blueP = pixelColor.B;
 
-            if (redP <= 25 && greenP <= 25 && blueP <= 25)
+            if (redP <= Config.blackValueOffset && greenP <= Config.blackValueOffset && blueP <= Config.blackValueOffset)
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public bool pixelIsRed(Color pixelColor)
+        {
+            redP = pixelColor.R;
+            greenP = pixelColor.G;
+            blueP = pixelColor.B;
+
+            if (Math.Abs(redP - red) <= Config.colorDifferenceOffset &&
+                        Math.Abs(greenP - green) <= Config.colorDifferenceOffset &&
+                        Math.Abs(blueP - blue) <= Config.colorDifferenceOffset)
             {
                 return true;
             }
@@ -96,9 +180,15 @@ namespace DSB_Analysis
             
         }
 
-        public void distanceToMiddle()
+        public int calculateDistanceToMiddle(Point point)
         {
-            
+            // Pythargoras theorem
+            var aSquare = middlePoint.X - point.X;
+            var bSquare = middlePoint.Y - point.Y;
+
+            var distance = Math.Sqrt(aSquare * aSquare + bSquare * bSquare);
+
+            return (int)Math.Round(distance, MidpointRounding.AwayFromZero);
         }
     }
 }
